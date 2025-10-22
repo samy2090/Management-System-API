@@ -6,10 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\TaskDependencyRequest;
 use App\Models\Task;
 use App\Models\TaskDependency;
+use App\Services\TaskDependencyService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class TaskDependencyController extends Controller
 {
+    public function __construct(
+        private TaskDependencyService $taskDependencyService
+    ) {}
+
     /**
      * Display a listing of task dependencies.
      */
@@ -40,28 +46,35 @@ class TaskDependencyController extends Controller
      */
     public function store(TaskDependencyRequest $request, Task $task): JsonResponse
     {
-        $dependency = TaskDependency::create([
-            'task_id' => $task->id,
-            'depends_on_task_id' => $request->depends_on_task_id
-        ]);
+        try {
+            $dependency = $this->taskDependencyService->createDependency(
+                $task->id, 
+                $request->depends_on_task_id
+            );
 
-        $dependencyTask = Task::find($request->depends_on_task_id);
+            $dependencyTask = Task::find($request->depends_on_task_id);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Task dependency added successfully.',
-            'data' => [
-                'dependency' => [
-                    'id' => $dependency->id,
-                    'task_id' => $task->id,
-                    'task_title' => $task->title,
-                    'depends_on_task_id' => $dependencyTask->id,
-                    'depends_on_task_title' => $dependencyTask->title,
-                    'depends_on_task_status' => $dependencyTask->status->value,
-                    'depends_on_task_status_label' => $dependencyTask->status->label(),
+            return response()->json([
+                'success' => true,
+                'message' => 'Task dependency added successfully.',
+                'data' => [
+                    'dependency' => [
+                        'id' => $dependency->id,
+                        'task_id' => $task->id,
+                        'task_title' => $task->title,
+                        'depends_on_task_id' => $dependencyTask->id,
+                        'depends_on_task_title' => $dependencyTask->title,
+                        'depends_on_task_status' => $dependencyTask->status->value,
+                        'depends_on_task_status_label' => $dependencyTask->status->label(),
+                    ]
                 ]
-            ]
-        ], 201);
+            ], 201);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 
     /**
@@ -74,34 +87,14 @@ class TaskDependencyController extends Controller
             'depends_on_task_ids.*' => 'required|integer|exists:tasks,id|different:' . $task->id,
         ]);
 
-        $dependencyIds = $request->depends_on_task_ids;
+        $result = $this->taskDependencyService->createMultipleDependencies(
+            $task->id, 
+            $request->depends_on_task_ids
+        );
+
         $addedDependencies = [];
-        $errors = [];
-
-        foreach ($dependencyIds as $dependsOnTaskId) {
-            // Check for circular dependency
-            if (Task::wouldCreateCircularDependency($task->id, $dependsOnTaskId)) {
-                $errors[] = "Task {$dependsOnTaskId} would create a circular dependency";
-                continue;
-            }
-
-            // Check if dependency already exists
-            $existingDependency = TaskDependency::where('task_id', $task->id)
-                ->where('depends_on_task_id', $dependsOnTaskId)
-                ->first();
-
-            if ($existingDependency) {
-                $errors[] = "Dependency on task {$dependsOnTaskId} already exists";
-                continue;
-            }
-
-            // Create the dependency
-            $dependency = TaskDependency::create([
-                'task_id' => $task->id,
-                'depends_on_task_id' => $dependsOnTaskId
-            ]);
-
-            $dependencyTask = Task::find($dependsOnTaskId);
+        foreach ($result['created'] as $dependency) {
+            $dependencyTask = Task::find($dependency->depends_on_task_id);
             $addedDependencies[] = [
                 'id' => $dependency->id,
                 'depends_on_task_id' => $dependencyTask->id,
@@ -123,8 +116,8 @@ class TaskDependencyController extends Controller
             ]
         ];
 
-        if (!empty($errors)) {
-            $response['warnings'] = $errors;
+        if (!empty($result['errors'])) {
+            $response['warnings'] = $result['errors'];
         }
 
         return response()->json($response, !empty($addedDependencies) ? 201 : 400);
@@ -135,18 +128,14 @@ class TaskDependencyController extends Controller
      */
     public function destroy(Task $task, int $dependsOnTaskId): JsonResponse
     {
-        $dependency = TaskDependency::where('task_id', $task->id)
-            ->where('depends_on_task_id', $dependsOnTaskId)
-            ->first();
+        $removed = $this->taskDependencyService->removeDependency($task->id, $dependsOnTaskId);
 
-        if (!$dependency) {
+        if (!$removed) {
             return response()->json([
                 'success' => false,
                 'message' => 'Dependency not found.'
             ], 404);
         }
-
-        $dependency->delete();
 
         return response()->json([
             'success' => true,
@@ -159,7 +148,7 @@ class TaskDependencyController extends Controller
      */
     public function dependentTasks(Task $task): JsonResponse
     {
-        $dependentTasks = $task->dependentTasks()->get();
+        $dependentTasks = $this->taskDependencyService->getDependentTasks($task->id);
         
         return response()->json([
             'success' => true,

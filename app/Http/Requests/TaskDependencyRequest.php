@@ -37,8 +37,9 @@ class TaskDependencyRequest extends FormRequest
                         return;
                     }
                     
-                    // Check for circular dependency
-                    if ($taskId && Task::wouldCreateCircularDependency($taskId, $value)) {
+                    // Check for circular dependency using service
+                    $service = app(\App\Services\TaskDependencyService::class);
+                    if ($taskId && $service->wouldCreateCircularDependency($taskId, $value)) {
                         $fail('This dependency would create a circular dependency.');
                         return;
                     }

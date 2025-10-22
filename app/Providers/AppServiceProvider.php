@@ -16,6 +16,9 @@ class AppServiceProvider extends ServiceProvider
         // Bind repository interfaces to their implementations
         $this->app->bind(UserRepositoryInterface::class, UserRepository::class);
         $this->app->bind(\App\Repositories\Interfaces\TaskRepositoryInterface::class, \App\Repositories\TaskRepository::class);
+        
+        // Register services
+        $this->app->singleton(\App\Services\TaskDependencyService::class);
     }
 
     /**
@@ -23,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Register model observers
+        \App\Models\TaskDependency::observe(\App\Observers\TaskDependencyObserver::class);
     }
 }

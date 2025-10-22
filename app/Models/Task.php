@@ -159,27 +159,4 @@ class Task extends Model
     {
         return $this->dependencies()->whereNotIn('status', [TaskStatus::COMPLETED->value])->get();
     }
-
-    /**
-     * Check if adding a dependency would create a circular dependency
-     */
-    public static function wouldCreateCircularDependency(int $taskId, int $dependsOnTaskId, array $visited = []): bool
-    {
-        if (in_array($taskId, $visited)) {
-            return true;
-        }
-
-        $visited[] = $taskId;
-
-        $dependencies = \App\Models\TaskDependency::where('depends_on_task_id', $dependsOnTaskId)
-            ->pluck('task_id');
-
-        foreach ($dependencies as $dependentTaskId) {
-            if (self::wouldCreateCircularDependency($taskId, $dependentTaskId, $visited)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
 }
