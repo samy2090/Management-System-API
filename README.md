@@ -230,44 +230,56 @@ php artisan test tests/Feature/TaskTest.php
 
 ## API Endpoints
 
-The API provides the following main endpoints:
 
-- **Authentication**: `/api/auth/*`
-- **Users**: `/api/users/*`
-- **Tasks**: `/api/tasks/*`
-- **Task Dependencies**: `/api/task-dependencies/*`
+## API Endpoints
+
+All API endpoints are prefixed with `/api/v1/`.
 
 ### Authentication
 
-```bash
-# Register user
-POST /api/auth/register
-
-# Login user
-POST /api/auth/login
-
-# Logout user
-POST /api/auth/logout
-```
+| Method | Endpoint         | Description         |
+|--------|------------------|---------------------|
+| POST   | /v1/login        | Login user          |
+| POST   | /v1/logout       | Logout user         |
 
 ### Tasks
 
-```bash
-# Get all tasks
-GET /api/tasks
+| Method  | Endpoint                                 | Description                                 |
+|---------|------------------------------------------|---------------------------------------------|
+| GET     | /v1/tasks                                | Get all tasks                              |
+| GET     | /v1/tasks/search/query                   | Search tasks                               |
+| GET     | /v1/tasks/status/{status}                | Get tasks by status                        |
+| GET     | /v1/tasks/overdue/list                   | Get overdue tasks                          |
+| GET     | /v1/tasks/{id}                           | Get specific task (with access control)    |
+| PATCH   | /v1/tasks/{id}/status                    | Update task status (with access control)   |
+| PATCH   | /v1/tasks/{id}/update                    | User updates their assigned task           |
+| POST    | /v1/tasks                                | Create task (manager only)                 |
+| PUT     | /v1/tasks/{id}                           | Update task (manager only)                 |
+| PATCH   | /v1/tasks/{id}                           | Update task (manager only)                 |
+| DELETE  | /v1/tasks/{id}                           | Delete task (manager only)                 |
+| POST    | /v1/tasks/{id}/assign                    | Assign task to user (manager only)         |
+| POST    | /v1/tasks/{id}/unassign                  | Unassign task (manager only)               |
+| GET     | /v1/tasks/unassigned/list                | View unassigned tasks (manager only)       |
+| GET     | /v1/tasks/statistics/all                 | View all statistics (manager only)         |
 
-# Create task
-POST /api/tasks
+### Task Dependencies
 
-# Get specific task
-GET /api/tasks/{id}
+| Method  | Endpoint                                                        | Description                                 |
+|---------|-----------------------------------------------------------------|---------------------------------------------|
+| GET     | /v1/tasks/{task}/dependencies                                   | List dependencies for a task                |
+| GET     | /v1/tasks/{task}/dependent-tasks                                | List tasks that depend on a task            |
+| POST    | /v1/tasks/{task}/dependencies                                   | Add a dependency to a task (manager only)   |
+| POST    | /v1/tasks/{task}/dependencies/multiple                          | Add multiple dependencies (manager only)    |
+| DELETE  | /v1/tasks/{task}/dependencies/{dependsOnTaskId}                 | Remove a dependency (manager only)          |
 
-# Update task
-PUT /api/tasks/{id}
+### My Tasks
 
-# Delete task
-DELETE /api/tasks/{id}
-```
+| Method  | Endpoint                | Description                |
+|---------|-------------------------|----------------------------|
+| GET     | /v1/my-tasks            | Get my assigned tasks      |
+| GET     | /v1/my-tasks/statistics | Get my task statistics     |
+
+**Note:** All endpoints require authentication except `/v1/login`. Manager-only endpoints require the user to have the manager role. Some endpoints require the user to be assigned to the task (access control).
 
 ## Docker Services
 
